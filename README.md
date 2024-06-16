@@ -9,11 +9,8 @@ conda install seaborn
 ```
 
 # huffman tree result
-## Source A
-![result_huffman_A.png](result_huffman_A.png)
+## (7,4) hamming코드, ML과 BP 비교 (1만회 송신)
+![ML_BP_result.png](ML_BP_result.png)
 
-## Source B
-![result_huffman_B.png](result_huffman_B.png)
-
-# simulation result (100회의 평균)
-![simulation_result.png](simulation_result1.png)
+## 1/2 convolution 코드, BCJR decoding (10만회 송신, 64 정보 비트, state 초기화 3비트, state 수 8,memory 3개)
+![BCJR_result.png](BCJR_result.png)

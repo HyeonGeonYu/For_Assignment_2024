@@ -162,7 +162,7 @@ BLER_BP_list = []
 BLER_ML_list = []
 error_prob_list = np.linspace(0.05, 0.5, num=10)
 # Number of transmissions
-num_transmissions = 10000
+num_transmissions = 100000
 
 for error_prob in error_prob_list:
     E_num_ML = 0
@@ -212,5 +212,5 @@ plt.xlabel('Error Probability')
 plt.ylabel('BLER')
 plt.legend()
 plt.grid(True,which="both", linestyle='--')
-plt.savefig("ML_BP result.png", dpi=300)
+plt.savefig("ML_BP_result.png", dpi=300)
 plt.show()
