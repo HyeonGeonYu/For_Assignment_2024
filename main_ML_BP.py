@@ -27,38 +27,91 @@ def encode_hamming(message):
 def bsc(channel_input, error_prob):
     return (channel_input + np.random.binomial(1, error_prob, size=channel_input.shape)) % 2
 
+def calculate_probability_one(selected_values):
+    # Perform the calculations as per the formula
+    # 100 010 001 111 #1
+    result = sum(
+        [np.prod([selected_values[0], 1 - selected_values[1], 1 - selected_values[2]]) * np.prod(selected_values),
+         np.prod([1 - selected_values[0], selected_values[1], 1 - selected_values[2]]) * np.prod(selected_values),
+         np.prod([1 - selected_values[0], 1 - selected_values[1], selected_values[2]]) * np.prod(selected_values),
+         np.prod([selected_values[0], selected_values[1], selected_values[2]]) * np.prod(selected_values)])
+
+    return result
+
+def calculate_probability_zero(selected_values):
+    # Perform the calculations as per the formula
+    # 110 101 011 000 #0
+    result = sum([np.prod([selected_values[0], selected_values[1], 1 - selected_values[2]]) * np.prod(selected_values),
+         np.prod([selected_values[0], 1 - selected_values[1], selected_values[2]]) * np.prod(selected_values),
+         np.prod([1 - selected_values[0], selected_values[1], selected_values[2]]) * np.prod(selected_values),
+         np.prod([1 - selected_values[0], 1 - selected_values[1], 1 - selected_values[2]]) * np.prod(selected_values)]
+        )
+    return result
+
 # Placeholder function to decode using Belief Propagation
-def belief_propagation(channel_output, max_iterations=10):
+def belief_propagation(channel_output, error_prob, max_iterations=10):
     message
     encoded_message
     channel_output
     num_checks, num_bits = H.shape
-    Lr = np.zeros((num_checks, num_bits))
-    Lq = np.zeros((num_checks, num_bits))
+    decoded_bit =[]
+    channel_output_probabilities = np.where(channel_output == 1, 0.95, 0.05) #1일 확률
+    mu = np.log(channel_output_probabilities/(1-channel_output_probabilities))
+    H * mu
 
-    for i in range(num_checks):
-        for j in range(num_bits):
-            if H[i, j] == 1:
-                Lq[i, j] = 2 * (channel_output[j] - 0.5)
 
-    for _ in range(max_iterations):
-        for i in range(num_checks):
-            for j in range(num_bits):
-                if H[i, j] == 1:
-                    Lq_no_j = np.delete(Lq[i, :], j)
-                    Lr[i, j] = np.prod(np.tanh(Lq_no_j / 2))
+    selected_values = channel_output_probabilities[[1,3,4]]
+    a1 = calculate_probability_one(selected_values)
+    b1  = calculate_probability_zero(selected_values)
 
-        for i in range(num_checks):
-            for j in range(num_bits):
-                if H[i, j] == 1:
-                    Lq[i, j] = 2 * (channel_output[j] - 0.5) + np.sum(Lr[:, j]) - Lr[i, j]
+    selected_values = channel_output_probabilities[[2, 3, 5]]
+    a2 = calculate_probability_one(selected_values)
+    # 110 101 011 000 #0
+    b2 = calculate_probability_zero(selected_values)
+    if a1+a2 > b1+b2:
+        decoded_bit.append(1)
+    else:
+        decoded_bit.append(0)
 
-    L_final = 2 * (channel_output - 0.5) + np.sum(Lr, axis=0)
-    decoded_codeword = (L_final >= 0).astype(int)
+    selected_values = channel_output_probabilities[[0, 3, 4]]
+    a1 = calculate_probability_one(selected_values)
+    b1 = calculate_probability_zero(selected_values)
 
-    # Extract original 4-bit message from decoded 7-bit codeword
-    decoded_message = decoded_codeword[:k]
-    return decoded_message
+    selected_values = channel_output_probabilities[[2, 3, 6]]
+    a2 = calculate_probability_one(selected_values)
+    # 110 101 011 000 #0
+    b2 = calculate_probability_zero(selected_values)
+    if a1 + a2 > b1 + b2:
+        decoded_bit.append(1)
+    else:
+        decoded_bit.append(0)
+
+    selected_values = channel_output_probabilities[[0, 3, 5]]
+    a1 = calculate_probability_one(selected_values)
+    b1 = calculate_probability_zero(selected_values)
+
+    selected_values = channel_output_probabilities[[1, 3, 6]]
+    a2 = calculate_probability_one(selected_values)
+    # 110 101 011 000 #0
+    b2 = calculate_probability_zero(selected_values)
+    if a1 + a2 > b1 + b2:
+        decoded_bit.append(1)
+    else:
+        decoded_bit.append(0)
+
+    selected_values = channel_output_probabilities[[0, 1, 4]]
+    a1 = calculate_probability_one(selected_values)
+    b1 = calculate_probability_zero(selected_values)
+
+    selected_values = channel_output_probabilities[[0, 2, 5]]
+    a2 = calculate_probability_one(selected_values)
+    # 110 101 011 000 #0
+    b2 = calculate_probability_zero(selected_values)
+    if a1 + a2 > b1 + b2:
+        decoded_bit.append(1)
+    else:
+        decoded_bit.append(0)
+    return decoded_bit
 # Placeholder function to decode using Maximum Likelihood
 def ml_decoding(received):
     num_codewords = 2**k
@@ -109,10 +162,11 @@ BLER_BP_list = []
 BLER_ML_list = []
 error_prob_list = np.linspace(0.05, 0.5, num=10)
 # Number of transmissions
-num_transmissions = 1000
+num_transmissions = 10000
 
 for error_prob in error_prob_list:
     E_num_ML = 0
+    E_num_BP = 0
     for _ in range(num_transmissions):
         # Generate random 4-bit message
         message = np.random.randint(0, 2, size=k)
@@ -123,18 +177,21 @@ for error_prob in error_prob_list:
         received_bsc = bsc(encoded_message, error_prob)
 
         # Decode messages
-        decoded_BP = belief_propagation(received_bsc)
+        decoded_BP = belief_propagation(received_bsc,error_prob)
         decoded_ML = syndrome_decoding(received_bsc)
-
-
         # Calculate BLER
         #BLER_BP = calculate_ber(message, decoded_BP)
+        if not np.array_equal(message, decoded_BP):
+            E_num_BP += 1
         if not np.array_equal(message, decoded_ML):
             E_num_ML += 1
+
     #average_ber_bp = np.mean(ber_BP_list)
+    average_BLER_BP = E_num_BP/num_transmissions
     average_BLER_ML = E_num_ML/num_transmissions
 
     #average_ber_BP_list.append(average_ber_bp)
+    BLER_BP_list.append(average_BLER_BP)
     BLER_ML_list.append(average_BLER_ML)
 
 prob_error_one_or_less = [(1-(binomial_probability(7, 0, p) + binomial_probability(7, 1, p))) for p in error_prob_list]
@@ -142,10 +199,11 @@ prob_error_one_or_less = [(1-(binomial_probability(7, 0, p) + binomial_probabili
 plt.figure(figsize=(10, 6))
 
 # Plotting BLER for Belief Propagation
-# plt.plot(error_prob_list, average_ber_BP_list, marker='o', linestyle='-', color='b', label='Belief Propagation')
+
 
 # Plotting BLER for Maximum Likelihood
 plt.plot(error_prob_list, BLER_ML_list, marker='s', linestyle='-', color='r', label='Maximum Likelihood')
+plt.plot(error_prob_list, BLER_BP_list, marker='o', linestyle='-', color='b', label='Belief Propagation')
 plt.plot(error_prob_list, prob_error_one_or_less, marker='v', linestyle='-', color='m',
          label='2bit or more errors Probablity')
 plt.yscale('log')
